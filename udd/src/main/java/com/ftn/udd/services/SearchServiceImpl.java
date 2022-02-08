@@ -29,10 +29,8 @@ import com.ftn.udd.elasticsearch.dto.SearchParamDTO;
 import com.ftn.udd.elasticsearch.enumeration.SearchType;
 import com.ftn.udd.elasticsearch.mappers.IndexingUnitMapper;
 import com.ftn.udd.elasticsearch.model.CVIndexingUnit;
-import com.ftn.udd.elasticsearch.model.CoverLetterIndexingUnit;
 import com.ftn.udd.elasticsearch.model.IndexingUnit;
 import com.ftn.udd.elasticsearch.repository.CVIndexingUnitRepository;
-import com.ftn.udd.elasticsearch.repository.CoverLetterIndexingUnitRepository;
 import com.ftn.udd.elasticsearch.repository.IndexingUnitRepository;
 import com.ftn.udd.model.JobApplication;
 import com.ftn.udd.repositories.IJobApplicationRepository;
@@ -55,23 +53,18 @@ public class SearchServiceImpl implements SearchService {
 	private CVIndexingUnitRepository cvRepo;
 
 	@Autowired
-	private CoverLetterIndexingUnitRepository clRepo;
-
-	@Autowired
 	private ElasticsearchTemplate elasticsearchTemplate;
 
 	private static final Logger logger = LoggerFactory.getLogger(SearchServiceImpl.class.getName());
-	
+
 	@Override
 	@Async("processExecutor")
 	public String index(JobApplicationDTO jobApplication) throws Exception {
 		MultipartFile cv = jobApplication.getCv();
-		MultipartFile cl = jobApplication.getCoverLetter();
 
-		if (!cv.isEmpty() && !cl.isEmpty()) {
+		if (!cv.isEmpty()) {
 			String pathCV = PdfUtils.upload(cv);
-			String pathCL = PdfUtils.upload(cl);
-			if (pathCV != null && pathCL != null) {
+			if (pathCV != null) {
 				PdfHandler pdfHandler = new PdfHandler();
 				String text = pdfHandler.getText(new File(pathCV));
 
@@ -81,15 +74,9 @@ public class SearchServiceImpl implements SearchService {
 				cvui.setPath(pathCV);
 				cvRepo.save(cvui);
 
-				String textLetter = pdfHandler.getText(new File(pathCL));
-				CoverLetterIndexingUnit clui = new CoverLetterIndexingUnit();
-				clui.setContent(textLetter);
-				clui.setPath(pathCL);
-				clRepo.save(clui);
-
 				JobApplication application = new JobApplication(null, jobApplication.getFirstName(),
 						jobApplication.getLastName(), jobApplication.getEmail(), jobApplication.getEducationDegree(),
-						jobApplication.getCity(), jobApplication.getCountry(), pathCV, pathCL);
+						jobApplication.getCity(), jobApplication.getCountry(), pathCV);
 				application = jaRepo.save(application);
 
 				String basicInfo = jobApplication.getFirstName() + " " + jobApplication.getLastName() + ", "
@@ -103,15 +90,14 @@ public class SearchServiceImpl implements SearchService {
 				}
 
 				IndexingUnit iu = new IndexingUnit(application.getId(), jobApplication.getFirstName(),
-						jobApplication.getLastName(), jobApplication.getEducationDegree(), basicInfo, cvui, clui,
-						geoPoint);
+						jobApplication.getLastName(), jobApplication.getEducationDegree(), basicInfo, cvui, geoPoint);
 				indexingUnitRepository.index(iu);
 
 				logger.info("Successfully uploaded job application");
 				return "Successfully uploaded job application";
 			}
 		} else {
-			throw new Exception("CV or Cover letter must not be empty");
+			throw new Exception("CV must not be empty");
 		}
 		return null;
 	}
@@ -122,7 +108,7 @@ public class SearchServiceImpl implements SearchService {
 		BoolQueryBuilder queryParams = QueryBuilders.boolQuery();
 
 		for (SearchParamDTO searchParam : searchParams) {
-			if (searchParam.getAttributeName().equals("cv") || searchParam.getAttributeName().equals("coverLetter")) {
+			if (searchParam.getAttributeName().equals("cv")) {
 				buildNestedParam(queryParams, searchParam.getPhraseQuery(), searchParam.getAttributeName(),
 						searchParam.getSearchValue(), searchParam.getType());
 			} else if (searchParam.getAttributeName().equals("educationDegree")) {
@@ -152,13 +138,6 @@ public class SearchServiceImpl implements SearchService {
 				boolQueryCv.should(QueryBuilders.commonTermsQuery("cv.content", searchValue)), ScoreMode.Total);
 
 		queryParams.should(nestedQueryCv);
-
-		BoolQueryBuilder boolQueryCoverLetter = QueryBuilders.boolQuery();
-		NestedQueryBuilder nestedQueryCoverLetter = QueryBuilders.nestedQuery("coverLetter",
-				boolQueryCoverLetter.should(QueryBuilders.commonTermsQuery("coverLetter.content", searchValue)),
-				ScoreMode.Total);
-
-		queryParams.should(nestedQueryCoverLetter);
 
 		return elasticsearchTemplate.queryForPage(createSearchQuery(nativeSearchQueryBuilder, queryParams, page, size),
 				IndexingUnit.class, new IndexingUnitMapper());
@@ -223,12 +202,9 @@ public class SearchServiceImpl implements SearchService {
 
 	private SearchQuery createSearchQuery(NativeSearchQueryBuilder searchQueryBuilder, BoolQueryBuilder queryParams,
 			int page, int size) {
-		return searchQueryBuilder.withQuery(queryParams)
-				.withHighlightFields(
-						new HighlightBuilder.Field("cv.content").preTags("<b>").postTags("</b>").numOfFragments(1)
-								.fragmentSize(250),
-						new HighlightBuilder.Field("coverLetter.content").preTags("<b>").postTags("</b>")
-								.numOfFragments(1).fragmentSize(250))
+		return searchQueryBuilder
+				.withQuery(queryParams).withHighlightFields(new HighlightBuilder.Field("cv.content").preTags("<b>")
+						.postTags("</b>").numOfFragments(1).fragmentSize(250))
 				.withPageable(PageRequest.of(page, size)).build();
 	}
 
@@ -250,10 +226,8 @@ public class SearchServiceImpl implements SearchService {
 					.replaceAll(" +", " ").split(" ");
 			if (words.length > 35) {
 				indexingUnit.getCv().setContent(String.join(" ", Arrays.copyOfRange(words, 0, 34)));
-				indexingUnit.getCoverLetter().setContent("");
 			} else {
 				indexingUnit.getCv().setContent(String.join(" ", Arrays.copyOfRange(words, 0, words.length)));
-				indexingUnit.getCoverLetter().setContent("");
 			}
 		}
 

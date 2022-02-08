@@ -47,7 +47,7 @@ public class SearchController {
 		try {
 			return new ResponseEntity<>(searchService.geoSearch(place, radius), HttpStatus.OK);
 		} catch (Exception e) {
-			return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+			return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
 		}
 	}
 

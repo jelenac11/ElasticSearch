@@ -32,16 +32,16 @@ public class User implements UserDetails {
 	@Column(name = "user_id")
 	private Long id;
 
-	@Column(unique = true, nullable = false)
+	@Column(nullable = false)
 	private String email;
 
-	@Column(unique = false, nullable = false)
+	@Column(nullable = false)
 	private String password;
 
-	@Column(unique = false, nullable = false)
+	@Column(nullable = false, name = "first_name")
 	private String firstName;
 
-	@Column(unique = false, nullable = false)
+	@Column(nullable = false, name = "last_name")
 	private String lastName;
 
 	@Column(name = "last_password_reset_date")

@@ -20,5 +20,4 @@ public class JobApplicationDTO {
 	private String country;
 	private String educationDegree;
 	private MultipartFile cv;
-	private MultipartFile coverLetter;
 }

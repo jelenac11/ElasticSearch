@@ -44,9 +44,6 @@ public class JobApplication {
     
     @Column(name = "cv_path")
     private String cvPath;
-    
-    @Column(name = "letter_path")
-    private String letterPath;
 }
 
 

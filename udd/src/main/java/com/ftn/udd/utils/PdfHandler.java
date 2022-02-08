@@ -12,18 +12,13 @@ import com.ftn.udd.elasticsearch.model.IndexingUnit;
 public class PdfHandler extends DocumentHandler {
 
 	@Override
-	public IndexingUnit getIndexingUnit(File fileCV, File fileCL) {
+	public IndexingUnit getIndexingUnit(File fileCV) {
 		IndexingUnit retVal = new IndexingUnit();
 		try {
 			PDFParser parser = new PDFParser(new RandomAccessFile(fileCV, "r"));
 			parser.parse();
 			String text = getText(parser);
 			retVal.getCv().setContent(text);
-			
-			parser = new PDFParser(new RandomAccessFile(fileCL, "r"));
-			parser.parse();
-			text = getText(parser);
-			retVal.getCoverLetter().setContent(text);
 
 		} catch (IOException e) {
 			System.out.println("Greska pri konvertovanju dokumenta u pdf");

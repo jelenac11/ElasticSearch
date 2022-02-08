@@ -37,9 +37,6 @@ public class IndexingUnit {
     
     @Field(type = FieldType.Nested)
 	private CVIndexingUnit cv;
-    
-    @Field(type = FieldType.Nested)
-	private CoverLetterIndexingUnit coverLetter;
 	
     @GeoPointField
 	private GeoPoint geoPoint;

@@ -1,7 +1,6 @@
 package com.ftn.udd.elasticsearch.mappers;
 
 import com.ftn.udd.elasticsearch.model.CVIndexingUnit;
-import com.ftn.udd.elasticsearch.model.CoverLetterIndexingUnit;
 import com.ftn.udd.elasticsearch.model.IndexingUnit;
 import com.google.gson.Gson;
 
@@ -37,44 +36,24 @@ public class IndexingUnitMapper implements SearchResultMapper {
 			CVIndexingUnit cv = new CVIndexingUnit(Math.round((double) cvMap.get("id")), (String) cvMap.get("content"),
 					(String) cvMap.get("path"));
 
-			@SuppressWarnings("unchecked")
-			Map<String, Object> coverLetterMap = gson.fromJson(gson.toJson(source.get("coverLetter")), Map.class);
-
-			CoverLetterIndexingUnit coverLetter = new CoverLetterIndexingUnit(Math.round((double) cvMap.get("id")),
-					(String) coverLetterMap.get("content"), (String) coverLetterMap.get("path"));
-			
-			String highValueCoverLetter;
-			try {
-				highValueCoverLetter = "..."
-						+ searchHit.getHighlightFields().get("coverLetter.content").fragments()[0].toString().replaceAll("[\\n\\r\\t]+", " ").trim().replaceAll(" +", " ") + "...";
-			} catch (Exception e) {
-				highValueCoverLetter = "";
-			}
-
 			String highValueCv;
 			try {
 				highValueCv = "..." + searchHit.getHighlightFields().get("cv.content").fragments()[0].toString().replaceAll("[\\n\\r\\t]+", " ").trim().replaceAll(" +", " ")
 						+ "...";
 			} catch (Exception e) {
-				if (highValueCoverLetter.equals("")) {
-					String[] words = cv.getContent().replaceAll("[\\n\\r\\t]+", " ").trim().replaceAll(" +", " ").split(" ");
-					if (words.length > 35) {
-						highValueCv = String.join(" ", Arrays.copyOfRange(words, 0, 34));
-					} else {
-						highValueCv = String.join(" ", Arrays.copyOfRange(words, 0, words.length));
-					}
+				String[] words = cv.getContent().replaceAll("[\\n\\r\\t]+", " ").trim().replaceAll(" +", " ").split(" ");
+				if (words.length > 35) {
+					highValueCv = String.join(" ", Arrays.copyOfRange(words, 0, 34));
 				} else {
-					highValueCv = "";
+					highValueCv = String.join(" ", Arrays.copyOfRange(words, 0, words.length));
 				}
 			}
 			
 			cv.setContent(highValueCv);
-			coverLetter.setContent(highValueCoverLetter);
-
+			
 			IndexingUnit indexingUnit = new IndexingUnit(Long.valueOf(searchHit.getId()),
 					(String) source.get("firstName"), (String) source.get("lastName"),
-					(String) source.get("educationDegree").toString(), (String) source.get("basicInfo"), cv,
-					coverLetter, null);
+					(String) source.get("educationDegree").toString(), (String) source.get("basicInfo"), cv, null);
 
 			result.add(indexingUnit);
 		}
