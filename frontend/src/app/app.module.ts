@@ -25,6 +25,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { NgxPaginationModule } from 'ngx-pagination';
+import { ResultComponent } from './result/result.component';
 
 @NgModule({
   declarations: [
@@ -34,11 +37,13 @@ import { MatSelectModule } from '@angular/material/select';
     AdvancedSearchComponent,
     GeoSearchComponent,
     ApplyComponent,
-    StatisticsComponent
+    StatisticsComponent,
+    ResultComponent
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
+    NgxPaginationModule,
     MatSelectModule,
     SharedModule,
     CoreModule,
@@ -58,6 +63,7 @@ import { MatSelectModule } from '@angular/material/select';
     MatIconModule,
     MatFormFieldModule,
     MatInputModule,
+    MatCheckboxModule,
   ],
   providers: [],
   bootstrap: [AppComponent]

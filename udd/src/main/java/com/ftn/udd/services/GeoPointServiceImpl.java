@@ -43,6 +43,39 @@ public class GeoPointServiceImpl implements GeoPointService {
         return null;
 	}
 	
+	@Override
+	public String getCityByCoords(double lat, double lon) throws Exception {
+		RestTemplate restTemplate = new RestTemplate();
+        String uri = "https://nominatim.openstreetmap.org/reverse?lat=" + lat + "&lon=" + lon + "&format=json&accept-language=en";
+        ResponseEntity<String> response;
+        try {
+            response = restTemplate.getForEntity(uri, String.class);
+        } catch (RestClientException e) {
+            response = null;
+        }
+        if (response != null && response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            ObjectMapper mapper = new ObjectMapper();
+            try {
+                JsonNode root = mapper.readTree(response.getBody());
+                if(root != null){
+                    JsonNode address = root.path("address");
+                    String town = address.path("town").asText();
+                    String city = address.path("city").asText();
+                    if(!city.isEmpty()){
+                        return city;
+                    } else {
+                    	return town;
+                    }
+                }
+            } catch (Exception e) {
+                throw new Exception("Non existing location. Please, try again.");
+            }
+
+        }
+        return "";
+	}
+	
+	
 	private String removeWhitespace(String word) {
 		return word.replaceAll(" ", "+");
 	}

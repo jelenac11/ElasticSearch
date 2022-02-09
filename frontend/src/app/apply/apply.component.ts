@@ -35,6 +35,21 @@ export class ApplyComponent implements OnInit {
       educationDegree: ['', Validators.required],
       file: [null, Validators.required],
     });
+
+    if (navigator.geolocation) {
+      this.getPosition().then(pos => {
+        console.log(`Positon: ${pos.lng} ${pos.lat}`);
+        this.jobService.logApplication(pos.lat, pos.lng).subscribe(
+          (data: any) => {
+            console.log(data);
+          },
+          err => {
+            console.log(err.error);
+          });
+      });
+    } else {
+      console.log("Geolocation is not supported by this browser.");
+    }
   }
 
   get f(): { [key: string]: AbstractControl; } { return this.applyForm.controls; }
@@ -86,6 +101,20 @@ export class ApplyComponent implements OnInit {
 
   private errorMessage(message: string): void {
     this.snackBar.error(message);
+  }
+
+  getPosition(): Promise<any> {
+    return new Promise((resolve, reject) => {
+
+      navigator.geolocation.getCurrentPosition(resp => {
+
+        resolve({ lng: resp.coords.longitude, lat: resp.coords.latitude });
+      },
+        err => {
+          reject(err);
+        });
+    });
+
   }
 
 }

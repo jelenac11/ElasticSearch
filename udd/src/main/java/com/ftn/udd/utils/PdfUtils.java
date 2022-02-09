@@ -18,6 +18,7 @@ public class PdfUtils {
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     
 	public static String upload(MultipartFile pdfFile) throws IOException {
+		String retVal = null;
         if (!pdfFile.isEmpty()) {
             byte[] bytes = pdfFile.getBytes();
 
@@ -28,9 +29,14 @@ public class PdfUtils {
             
             Files.write(path, bytes);
 
-            return path.toString();
+            retVal = path.toString();
         }
-        return null;
+        return retVal;
+    }
+	
+	public static byte[] readFile(String filePath) throws IOException {
+        Path pdfPath = Paths.get(filePath);
+        return Files.readAllBytes(pdfPath);
     }
 	
 }

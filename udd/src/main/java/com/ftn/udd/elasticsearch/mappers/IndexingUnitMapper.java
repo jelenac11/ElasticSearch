@@ -18,6 +18,8 @@ import java.util.Map;
 
 public class IndexingUnitMapper implements SearchResultMapper {
 
+	public Integer totalElements;
+
 	@Override
 	public <T> AggregatedPage<T> mapResults(SearchResponse searchResponse, Class<T> aClass, Pageable pageable) {
 		List<IndexingUnit> result = new ArrayList<>();
@@ -26,7 +28,7 @@ public class IndexingUnitMapper implements SearchResultMapper {
 			if (searchResponse.getHits().getHits().length <= 0) {
 				return null;
 			}
-			
+
 			Gson gson = new Gson();
 			Map<String, Object> source = searchHit.getSourceAsMap();
 
@@ -38,19 +40,20 @@ public class IndexingUnitMapper implements SearchResultMapper {
 
 			String highValueCv;
 			try {
-				highValueCv = "..." + searchHit.getHighlightFields().get("cv.content").fragments()[0].toString().replaceAll("[\\n\\r\\t]+", " ").trim().replaceAll(" +", " ")
-						+ "...";
+				highValueCv = "..." + searchHit.getHighlightFields().get("cv.content").fragments()[0].toString()
+						.replaceAll("[\\n\\r\\t]+", " ").trim().replaceAll(" +", " ") + "...";
 			} catch (Exception e) {
-				String[] words = cv.getContent().replaceAll("[\\n\\r\\t]+", " ").trim().replaceAll(" +", " ").split(" ");
+				String[] words = cv.getContent().replaceAll("[\\n\\r\\t]+", " ").trim().replaceAll(" +", " ")
+						.split(" ");
 				if (words.length > 35) {
 					highValueCv = String.join(" ", Arrays.copyOfRange(words, 0, 34));
 				} else {
 					highValueCv = String.join(" ", Arrays.copyOfRange(words, 0, words.length));
 				}
 			}
-			
+
 			cv.setContent(highValueCv);
-			
+
 			IndexingUnit indexingUnit = new IndexingUnit(Long.valueOf(searchHit.getId()),
 					(String) source.get("firstName"), (String) source.get("lastName"),
 					(String) source.get("educationDegree").toString(), (String) source.get("basicInfo"), cv, null);
@@ -58,9 +61,15 @@ public class IndexingUnitMapper implements SearchResultMapper {
 			result.add(indexingUnit);
 		}
 		if (result.size() > 0) {
+			this.totalElements = (int) searchResponse.getHits().getTotalHits();
 			return new AggregatedPageImpl(result);
 		}
 
 		return null;
 	}
+
+	public IndexingUnitMapper() {
+		this.totalElements = 0;
+	}
+
 }

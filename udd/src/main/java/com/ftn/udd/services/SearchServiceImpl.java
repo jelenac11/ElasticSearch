@@ -1,7 +1,7 @@
 package com.ftn.udd.services;
 
 import java.io.File;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.lucene.search.join.ScoreMode;
@@ -14,9 +14,9 @@ import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.core.aggregation.AggregatedPage;
 import org.springframework.data.elasticsearch.core.geo.GeoPoint;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.data.elasticsearch.core.query.SearchQuery;
@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.ftn.udd.dto.JobApplicationDTO;
+import com.ftn.udd.elasticsearch.dto.ResultsDTO;
 import com.ftn.udd.elasticsearch.dto.SearchParamDTO;
 import com.ftn.udd.elasticsearch.enumeration.SearchType;
 import com.ftn.udd.elasticsearch.mappers.IndexingUnitMapper;
@@ -80,8 +81,8 @@ public class SearchServiceImpl implements SearchService {
 				application = jaRepo.save(application);
 
 				String basicInfo = jobApplication.getFirstName() + " " + jobApplication.getLastName() + ", "
-						+ jobApplication.getEducationDegree() + "(education degree), " + jobApplication.getCity() + ", "
-						+ jobApplication.getCountry();
+						+ jobApplication.getEmail() + ", " + jobApplication.getEducationDegree() + " (education degree), "
+						+ jobApplication.getCity() + ", " + jobApplication.getCountry();
 
 				GeoPoint geoPoint = geoPointService.getGeoPoint(jobApplication.getCity(), jobApplication.getCountry());
 
@@ -103,7 +104,7 @@ public class SearchServiceImpl implements SearchService {
 	}
 
 	@Override
-	public Page<IndexingUnit> advancedQuery(List<SearchParamDTO> searchParams, int page, int size) {
+	public ResultsDTO advancedQuery(List<SearchParamDTO> searchParams, int page, int size) {
 		NativeSearchQueryBuilder nativeSearchQueryBuilder = new NativeSearchQueryBuilder();
 		BoolQueryBuilder queryParams = QueryBuilders.boolQuery();
 
@@ -119,12 +120,18 @@ public class SearchServiceImpl implements SearchService {
 						searchParam.getSearchValue(), searchParam.getType());
 			}
 		}
-		return elasticsearchTemplate.queryForPage(createSearchQuery(nativeSearchQueryBuilder, queryParams, page, size),
-				IndexingUnit.class, new IndexingUnitMapper());
+		IndexingUnitMapper mapper = new IndexingUnitMapper();
+		AggregatedPage<IndexingUnit> i = elasticsearchTemplate.queryForPage(
+				createSearchQuery(nativeSearchQueryBuilder, queryParams, page, size), IndexingUnit.class, mapper);
+
+		if (i == null) {
+			return new ResultsDTO(new ArrayList<IndexingUnit>(), 0);
+		}
+		return new ResultsDTO(i.getContent(), mapper.totalElements);
 	}
 
 	@Override
-	public Page<IndexingUnit> simpleQuery(String searchValue, int page, int size) {
+	public ResultsDTO simpleQuery(String searchValue, int page, int size) {
 
 		NativeSearchQueryBuilder nativeSearchQueryBuilder = new NativeSearchQueryBuilder();
 		BoolQueryBuilder queryParams = new BoolQueryBuilder();
@@ -139,8 +146,14 @@ public class SearchServiceImpl implements SearchService {
 
 		queryParams.should(nestedQueryCv);
 
-		return elasticsearchTemplate.queryForPage(createSearchQuery(nativeSearchQueryBuilder, queryParams, page, size),
-				IndexingUnit.class, new IndexingUnitMapper());
+		IndexingUnitMapper mapper = new IndexingUnitMapper();
+		AggregatedPage<IndexingUnit> i = elasticsearchTemplate.queryForPage(
+				createSearchQuery(nativeSearchQueryBuilder, queryParams, page, size), IndexingUnit.class, mapper);
+
+		if (i == null) {
+			return new ResultsDTO(new ArrayList<IndexingUnit>(), 0);
+		}
+		return new ResultsDTO(i.getContent(), mapper.totalElements);
 	}
 
 	private void buildQueryParam(BoolQueryBuilder queryParams, Boolean isPhraseQuery, String attributeName,
@@ -204,34 +217,28 @@ public class SearchServiceImpl implements SearchService {
 			int page, int size) {
 		return searchQueryBuilder
 				.withQuery(queryParams).withHighlightFields(new HighlightBuilder.Field("cv.content").preTags("<b>")
-						.postTags("</b>").numOfFragments(1).fragmentSize(250))
+						.postTags("</b>").numOfFragments(1).fragmentSize(500))
 				.withPageable(PageRequest.of(page, size)).build();
 	}
 
 	@Override
-	public List<IndexingUnit> geoSearch(String place, int radius) throws Exception {
+	public ResultsDTO geoSearch(String place, int radius, int page, int size) throws Exception {
 		GeoPoint gp = geoPointService.getGeoPoint(place, "");
 		QueryBuilder filter = QueryBuilders.geoDistanceQuery("geoPoint").point(gp.getLat(), gp.getLon())
 				.distance(radius, DistanceUnit.KILOMETERS);
 
+		NativeSearchQueryBuilder nativeSearchQueryBuilder = new NativeSearchQueryBuilder();
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
-
 		boolQuery.must(filter);
 
-		SearchQuery theQuery = new NativeSearchQueryBuilder().withQuery(boolQuery).build();
+		IndexingUnitMapper mapper = new IndexingUnitMapper();
+		AggregatedPage<IndexingUnit> i = elasticsearchTemplate.queryForPage(
+				createSearchQuery(nativeSearchQueryBuilder, boolQuery, page, size), IndexingUnit.class, mapper);
 
-		List<IndexingUnit> list = elasticsearchTemplate.queryForList(theQuery, IndexingUnit.class);
-		for (IndexingUnit indexingUnit : list) {
-			String[] words = indexingUnit.getCv().getContent().replaceAll("[\\n\\r\\t]+", " ").trim()
-					.replaceAll(" +", " ").split(" ");
-			if (words.length > 35) {
-				indexingUnit.getCv().setContent(String.join(" ", Arrays.copyOfRange(words, 0, 34)));
-			} else {
-				indexingUnit.getCv().setContent(String.join(" ", Arrays.copyOfRange(words, 0, words.length)));
-			}
+		if (i == null) {
+			return new ResultsDTO(new ArrayList<IndexingUnit>(), 0);
 		}
-
-		return elasticsearchTemplate.queryForList(theQuery, IndexingUnit.class);
+		return new ResultsDTO(i.getContent(), mapper.totalElements);
 	}
 
 }

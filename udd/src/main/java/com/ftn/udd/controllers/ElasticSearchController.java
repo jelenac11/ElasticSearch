@@ -17,7 +17,7 @@ import com.ftn.udd.dto.JobApplicationDTO;
 import com.ftn.udd.services.SearchService;
 
 @RestController
-@RequestMapping(value = "/elastic", produces = MediaType.APPLICATION_JSON_VALUE)
+@RequestMapping(value = "/api/elastic")
 @CrossOrigin(origins = "http://localhost:8090", maxAge = 3600, allowedHeaders = "*")
 public class ElasticSearchController {
 
